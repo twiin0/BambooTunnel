@@ -10,7 +10,7 @@
         android:id="@+id/appBarLayout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="?attr/colorPrimary"
+        android:background="@color/softGreen"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -19,46 +19,48 @@
             android:id="@+id/topAppBar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
+            android:background="#009688"
             app:logo="@drawable/bt_logo"
-            app:title="Bambootunnel"
-            app:titleTextColor="@android:color/white" />
-
+            app:title="Bamboo Tunnel"
+            app:titleTextColor="@android:color/holo_green_light" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <LinearLayout
         android:id="@+id/toggleBar"
+        style="?android:attr/buttonBarStyle"
         android:layout_width="0dp"
         android:layout_height="48dp"
+        android:background="@color/green"
         android:orientation="horizontal"
-        android:background="#E0E7FF"
-        app:layout_constraintTop_toBottomOf="@id/appBarLayout"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintTop_toBottomOf="@id/appBarLayout">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnDownload"
-            android:layout_weight="1"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:text="Download"
-            android:background="@color/blue"
-            android:textColor="@android:color/white" />
+            android:layout_weight="1"
+            android:text="@string/download_text"
+            android:textColor="@android:color/white"
+            style="@style/Widget.MaterialComponents.Button.TextButton" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnUpload"
-            android:layout_weight="1"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:text="Upload"
-            android:background="@android:color/transparent"
-            android:textColor="@color/blue" />
+            android:layout_weight="1"
+            android:text="@string/upload_text"
+            android:textColor="@color/white"
+            style="@style/Widget.MaterialComponents.Button.TextButton" />
     </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layoutManager="LinearLayoutManager"
+        android:visibility="visible"
+        android:background="@drawable/bamboo_tunnel_background"
         app:layout_constraintTop_toBottomOf="@id/toggleBar"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -68,22 +70,22 @@
         android:id="@+id/uploadSection"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:background="@drawable/bamboo_tunnel_background"
         android:orientation="vertical"
         android:padding="16dp"
-        android:background="#F0F4FF"
         android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/toggleBar"
         app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        app:layout_constraintTop_toBottomOf="@id/toggleBar">
 
         <Button
             android:id="@+id/btnSelectFiles"
-            android:text="Select files to upload"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-
+            android:layout_height="wrap_content"
+            android:text="@string/upload_description"
+            android:textColor="@android:color/white"
+            app:backgroundTint="@color/teal_700" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
-
