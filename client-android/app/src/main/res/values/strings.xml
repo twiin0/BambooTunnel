@@ -1,4 +1,7 @@
 <resources>
     <string name="app_name">Bamboo Tunnel</string>
     <string name="file_icon">File icon</string>
+    <string name="upload_description">Select files to upload</string>
+    <string name="upload_text">Upload</string>
+    <string name="download_text">Download</string>
 </resources>

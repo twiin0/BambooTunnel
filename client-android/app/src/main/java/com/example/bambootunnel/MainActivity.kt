@@ -1,22 +1,40 @@
 package com.example.bambootunnel
 
+import android.app.Activity
 import android.app.AlertDialog
 import android.app.DownloadManager
+import android.content.ContentResolver
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.provider.OpenableColumns
+import android.view.View
+import android.webkit.MimeTypeMap
+import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import androidx.core.net.toUri
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.io.InputStream
 import java.net.URLEncoder
+import androidx.core.content.edit
 
 class MainActivity : AppCompatActivity() {
 
@@ -26,17 +44,31 @@ class MainActivity : AppCompatActivity() {
 
     private var ipAddress: String? = null
     private lateinit var baseUrl: String
-    private val pathStack = mutableListOf("")  // root = ""
+    private val pathStack = mutableListOf("")
+
+    private lateinit var btnDownload: Button
+    private lateinit var btnUpload: Button
+    private lateinit var uploadSection: LinearLayout
+    private lateinit var btnSelectFiles: Button
+
+    private val filePickCode = 1001
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // 1. Set up RecyclerView
+        btnDownload = findViewById(R.id.btnDownload)
+        btnUpload = findViewById(R.id.btnUpload)
+        uploadSection = findViewById(R.id.uploadSection)
+        btnSelectFiles = findViewById(R.id.btnSelectFiles)
+
         recyclerView = findViewById(R.id.recyclerView)
         recyclerView.layoutManager = GridLayoutManager(this, 2)
 
-        // 2. Handle system back to navigate up folders
+        btnDownload.setOnClickListener { showDownloadSection() }
+        btnUpload.setOnClickListener { showUploadSection() }
+        btnSelectFiles.setOnClickListener { openFilePicker() }
+
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (pathStack.size > 1) {
@@ -49,11 +81,10 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        // 3. Kick off IP prompt (which will initialize adapter & load data)
         getOrPromptIp()
+        showDownloadSection()
     }
 
-    // prompts user for ip (reusable for different circumstances)
     private fun promptForIp(message: String = "Enter IP Address") {
         val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         val lastIp = prefs.getString("ip_address", "") ?: ""
@@ -69,7 +100,7 @@ class MainActivity : AppCompatActivity() {
             .setTitle(message)
             .setView(input)
             .setCancelable(false)
-            .setPositiveButton("Connect", null) // override click listener below
+            .setPositiveButton("Connect", null)
             .create()
 
         dialog.setOnShowListener {
@@ -77,7 +108,7 @@ class MainActivity : AppCompatActivity() {
             button.setOnClickListener {
                 val ip = input.text.toString().trim()
                 if (ip.isNotEmpty()) {
-                    prefs.edit().putString("ip_address", ip).apply()
+                    prefs.edit { putString("ip_address", ip) }
                     ipAddress = ip
                     baseUrl = "http://$ipAddress:8022"
                     setupRetrofitAndLoadFiles()
@@ -90,7 +121,6 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    // gets last used ip, i
     private fun getOrPromptIp() {
         val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         ipAddress = prefs.getString("ip_address", null)
@@ -103,16 +133,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Configures the network client, sets up your file list UI, and loads the initial file list from the backend.
     private fun setupRetrofitAndLoadFiles() {
-        // Build Retrofit once baseUrl is known
         val retrofit = Retrofit.Builder()
             .baseUrl(baseUrl.trimEnd('/') + "/")
             .addConverterFactory(GsonConverterFactory.create())
             .build()
         api = retrofit.create(ApiService::class.java)
 
-        // Initialize adapter with now-known baseUrl
         fileAdapter = FileAdapter(baseUrl) { file ->
             if (file.type == "directory") {
                 pathStack.add(file.path)
@@ -122,12 +149,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
         recyclerView.adapter = fileAdapter
-
-        // Load root folder
         loadFiles(pathStack.last())
     }
 
-    // load files so viewable except on error, re-prompt for ip
     private fun loadFiles(path: String) {
         lifecycleScope.launch {
             try {
@@ -140,12 +164,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // decodes path of desired file and makes download request
     private fun downloadFile(file: FileItem) {
-        // URL‑encode each path segment to support spaces & special chars
         val encodedPath = file.path
             .split("/")
-            .joinToString("/") { segment -> URLEncoder.encode(segment, "UTF-8") }
+            .joinToString("/") { URLEncoder.encode(it, "UTF-8") }
         val downloadUrl = "${baseUrl.trimEnd('/')}/download/$encodedPath"
 
         val request = DownloadManager.Request(downloadUrl.toUri())
@@ -159,5 +181,93 @@ class MainActivity : AppCompatActivity() {
         val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         dm.enqueue(request)
         Toast.makeText(this, "Download started", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showDownloadSection() {
+        recyclerView.visibility = RecyclerView.VISIBLE
+        uploadSection.visibility = LinearLayout.GONE
+
+        btnDownload.setBackgroundColor(ContextCompat.getColor(this, R.color.teal_700))
+        btnUpload.setBackgroundColor(ContextCompat.getColor(this, android.R.color.transparent))
+    }
+
+    private fun showUploadSection() {
+        recyclerView.visibility = View.GONE
+        uploadSection.visibility = View.VISIBLE
+
+        btnUpload.setBackgroundColor(ContextCompat.getColor(this, R.color.teal_700))
+        btnDownload.setBackgroundColor(ContextCompat.getColor(this, android.R.color.transparent))
+    }
+
+    private fun openFilePicker() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+        }
+        startActivityForResult(intent, filePickCode)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == filePickCode && resultCode == Activity.RESULT_OK) {
+            data?.let {
+                val uris = mutableListOf<Uri>()
+                it.clipData?.let { clip ->
+                    for (i in 0 until clip.itemCount) uris.add(clip.getItemAt(i).uri)
+                } ?: it.data?.let { uri -> uris.add(uri) }
+                uploadFiles(uris)
+            }
+        }
+    }
+
+    private fun uploadFiles(uris: List<Uri>) {
+        lifecycleScope.launch {
+            for (uri in uris) {
+                try {
+                    val part = prepareFilePart("file", uri)
+                    api.uploadFile(part)
+                    Toast.makeText(this@MainActivity, "Uploaded: ${getFileName(uri)}", Toast.LENGTH_SHORT).show()
+                } catch (e: HttpException) {
+                    Toast.makeText(this@MainActivity, "Upload failed: ${e.message()}", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(this@MainActivity, "Upload error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private suspend fun prepareFilePart(partName: String, fileUri: Uri): MultipartBody.Part =
+        withContext(Dispatchers.IO) {
+            val resolver: ContentResolver = applicationContext.contentResolver
+            val mimeType = getMimeType(fileUri)
+            val input: InputStream = resolver.openInputStream(fileUri) ?: error("Cannot open stream")
+            val bytes = input.readBytes().also { input.close() }
+            val fileName = getFileName(fileUri)
+            val requestBody = bytes.toRequestBody(mimeType.toMediaTypeOrNull())
+            MultipartBody.Part.createFormData(partName, fileName, requestBody)
+        }
+
+    private fun getMimeType(uri: Uri): String {
+        val ext = MimeTypeMap.getFileExtensionFromUrl(uri.toString())
+        return ext?.let { MimeTypeMap.getSingleton().getMimeTypeFromExtension(it) }
+            ?: "application/octet-stream"
+    }
+
+    private fun getFileName(uri: Uri): String {
+        var name: String? = null
+        if (uri.scheme == "content") {
+            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (idx != -1) name = cursor.getString(idx)
+                }
+            }
+        }
+        if (name == null) uri.path?.let { path ->
+            val cut = path.lastIndexOf('/')
+            if (cut != -1) name = path.substring(cut + 1)
+        }
+        return name ?: "file"
     }
 }
