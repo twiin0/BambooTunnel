@@ -1,5 +1,6 @@
-package com.example.bambootunnel
+package com.example.bambootunnel.data.api
 
+import com.example.bambootunnel.data.model.FileItem
 import okhttp3.MultipartBody
 import okhttp3.ResponseBody
 import retrofit2.http.GET

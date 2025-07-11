@@ -19,7 +19,7 @@
 
 
     <activity
-        android:name=".MainActivity"
+        android:name=".presentation.activity.MainActivity"
         android:exported="true"
         android:theme="@style/Theme.BambooTunnel">
         <intent-filter>
