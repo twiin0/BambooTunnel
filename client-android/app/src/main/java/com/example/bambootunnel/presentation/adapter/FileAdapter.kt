@@ -1,4 +1,4 @@
-package com.example.bambootunnel
+package com.example.bambootunnel.presentation.adapter
 
 import android.view.LayoutInflater
 import android.view.View
@@ -7,6 +7,8 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.example.bambootunnel.data.model.FileItem
+import com.example.bambootunnel.R
 
 class FileAdapter(
     private val baseUrl: String,                // Backend URL (chosen from tailscale)

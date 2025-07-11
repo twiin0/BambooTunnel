@@ -1,4 +1,4 @@
-package com.example.bambootunnel
+package com.example.bambootunnel.data.model
 
 data class FileItem(
     val name: String, // title of file/dir
